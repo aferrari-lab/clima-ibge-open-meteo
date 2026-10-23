@@ -1,0 +1,25 @@
+# Ambiente e segredos
+.venv/
+.env
+.kaggle/
+kaggle.json
+
+# Dados e banco local (reproduzíveis pelos notebooks)
+dados/
+*.duckdb
+*.duckdb.wal
+*.wal
+
+# Notebooks originais, com saídas locais; a versão limpa fica em notebooks/
+/*.ipynb
+
+# Python e editor
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.vscode/
+
+# Build e testes
+*.egg-info/
+build/
+.pytest_cache/
