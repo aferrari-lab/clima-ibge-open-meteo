@@ -4,5 +4,7 @@ clima:
   outputs:
     dev:
       type: duckdb
-      path: ../dados/warehouse.duckdb   # relativo à pasta de onde o dbt é executado (dbt/)
+      # Caminho do banco: variável CLIMA_DB (definida em .vscode/settings.json);
+      # sem ela, usa o caminho relativo à pasta dbt/.
+      path: "{{ env_var('CLIMA_DB', '../dados/warehouse.duckdb') }}"
       threads: 1                        # o DuckDB aceita um escritor por vez
