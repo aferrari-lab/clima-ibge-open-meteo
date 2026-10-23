@@ -38,7 +38,7 @@ Além delas: `fonte` (`archive` = dado fechado, `forecast` = provisório) e `car
 - **Dado fechado e provisório:** a API de histórico tem alguns dias de atraso. Os dias mais recentes vêm da API de previsão, marcados como `forecast`, e são substituídos pelo dado fechado quando ele fica disponível.
 - **Pedidos divididos:** a API recusa pedidos grandes demais (erro 400). Por isso a carga divide o período por ano e as cidades em lotes, com um orçamento de valores por pedido.
 - **Retomável:** cada pedido é gravado ao terminar. Se a carga parar (por limite de uso, por exemplo), basta rodar de novo.
-- **Limite de uso da API:** o plano gratuito pesa cada pedido por cidades × dias. Por isso a carga usa, por padrão, uma cidade por região imediata (os vizinhos têm séries quase iguais); `--todas` carrega todos os municípios da UF, ao longo de vários dias.
+- **Limite de uso da API:** o plano gratuito pesa cada pedido por cidades × dias. Por isso a carga usa, por padrão, uma cidade por região imediata (os vizinhos têm séries quase iguais); `--todas` carrega todos os municípios (para o Brasil inteiro, leva meses na cota gratuita).
 - **Fuso horário por município:** passado à API para evitar datas deslocadas.
 
 ## Limites da API
@@ -71,14 +71,14 @@ pip install -r requirements.txt   # instala as dependências e o pacote `clima` 
 **2. Clima**, pelo terminal (ou pelo `notebooks/02_open_meteo.ipynb`):
 
 ```bash
-python -m clima                            # SP: uma cidade por região imediata, desde 2016
-python -m clima --todas                    # todos os municípios da UF
+python -m clima                            # Brasil: uma cidade por região imediata, desde 2016
+python -m clima --uf SP --todas            # todos os municípios de uma UF
 python -m clima --limite 5                 # teste rápido com 5 cidades
-python -m clima --uf MG                    # outra UF
+python -m clima --uf MG                    # só uma UF
 python -m clima --uf SP --inicio 2020-01-01
 ```
 
-O comando carrega uma UF por vez: para cobrir o Brasil, rode-o para cada UF. A carga é retomável. Se parar por limite de uso da API, o programa termina com código de saída 2: rode o mesmo comando mais tarde.
+Sem `--uf`, o comando carrega o Brasil inteiro; com `--uf SP`, só uma UF. A carga é retomável. Se parar por limite de uso da API, o programa termina com código de saída 2: rode o mesmo comando mais tarde.
 
 **3. Análise exploratória (EDA):** `notebooks/03_eda.ipynb`. Só lê o banco, então precisa da carga do passo 2.
 

@@ -6,7 +6,7 @@ import pytest
 import requests
 
 from clima import open_meteo as om
-from clima.cidades import representativas
+from clima.cidades import carregar_municipios, representativas
 from clima.db import consultar
 
 HOJE = date(2026, 10, 23)
@@ -161,9 +161,39 @@ def test_representativas_uma_por_regiao():
     m = pd.DataFrame({
         "ibge_id": [1, 2, 3, 4, 5, 6],
         "nome": list("abcdef"),
+        "uf_sigla": ["SP"] * 6,
         "regiao_imediata": ["X", "X", "X", "Y", "Y", "Y"],
         "lat": [0.0, 1.0, 2.0, 10.0, 10.2, 13.0],   # centros: X = 1.0 (id 2); Y ~ 11.07 (id 5)
         "lng": [0.0] * 6,
         "fuso_horario": ["America/Sao_Paulo"] * 6,
     })
     assert sorted(representativas(m)["ibge_id"]) == [2, 5]
+
+
+def test_regiao_com_mesmo_nome_em_ufs_diferentes():
+    m = pd.DataFrame({
+        "ibge_id": [1, 2, 3, 4],
+        "nome": ["Bom Jesus", "Outra", "Bom Jesus", "Mais uma"],
+        "uf_sigla": ["PI", "PI", "RS", "RS"],
+        "regiao_imediata": ["Bom Jesus"] * 4,   # mesmo nome de região em dois estados
+        "lat": [-9.0, -9.1, -28.6, -28.7],
+        "lng": [-44.0, -44.1, -50.4, -50.5],
+        "fuso_horario": ["America/Sao_Paulo"] * 4,
+    })
+    rep = representativas(m)
+    assert len(rep) == 2 and sorted(rep["uf_sigla"]) == ["PI", "RS"]
+
+
+def test_carregar_municipios_brasil_ou_uma_uf(tmp_path):
+    import duckdb
+    db = tmp_path / "t.duckdb"
+    with duckdb.connect(str(db)) as con:
+        con.execute("create schema bronze")
+        con.execute("""create table bronze.ibge_municipios as select * from (values
+            (1, 'a', 'SP', 'X', -23.5, -46.6, 'America/Sao_Paulo'),
+            (2, 'b', 'AC', 'Y', -9.9, -67.8, 'America/Rio_Branco'),
+            (3, 'c', 'MG', 'Z', -19.9, -43.9, 'America/Sao_Paulo'))
+            t(ibge_id, nome, uf_sigla, regiao_imediata, lat, lng, fuso_horario)""")
+    assert len(carregar_municipios(db, "BR")) == 3
+    assert list(carregar_municipios(db, "sp")["ibge_id"]) == [1]
+    assert carregar_municipios(db, "XX").empty
