@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: municipios
+    description: Municípios do IBGE, uma linha por município (chave ibge_id).
+    columns:
+      - name: ibge_id
+        description: Código IBGE do município (7 dígitos).
+        data_tests: [unique, not_null]
+      - name: uf_sigla
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB,
+                         PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO]
+      - name: lat
+        data_tests: [not_null]
+      - name: lng
+        data_tests: [not_null]
+      - name: fuso_horario
+        data_tests: [not_null]
+
+  - name: clima_diario
+    description: >
+      Clima diário fechado (archive) por município, com unidades explícitas.
+      Faixas plausíveis testadas em tests/assert_clima_diario_faixas_plausiveis.sql.
+    data_tests:
+      - chave_unica:
+          arguments:
+            colunas: [ibge_id, data]
+    columns:
+      - name: ibge_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('municipios')
+                field: ibge_id
+      - name: data
+        data_tests: [not_null]
+      - name: temp_media_c
+        description: Temperatura média do ar a 2 m (°C).
+        data_tests: [not_null]
+      - name: temp_max_c
+        description: Temperatura máxima do dia (°C).
+        data_tests:
+          - not_null:
+              config: {severity: warn}
+      - name: temp_min_c
+        description: Temperatura mínima do dia (°C).
+        data_tests:
+          - not_null:
+              config: {severity: warn}
+      - name: chuva_mm
+        description: Precipitação total do dia (mm).
+      - name: radiacao_mj_m2
+        description: Radiação solar de onda curta acumulada no dia (MJ/m²).
+      - name: sol_horas
+        description: Duração do sol no dia (horas; a API envia em segundos).
+      - name: vento_max_kmh
+        description: Velocidade máxima do vento a 10 m (km/h).
+      - name: amplitude_c
+        description: Amplitude térmica do dia (máxima menos mínima, °C).
+      - name: dia_semana
+        description: Dia da semana ISO (1 = segunda ... 7 = domingo).

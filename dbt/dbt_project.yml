@@ -1,0 +1,17 @@
+name: clima
+version: "1.0.0"
+config-version: 2
+profile: clima
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+models:
+  clima:
+    silver:
+      +schema: silver          # vira a schema "silver" (veja macros/generate_schema_name.sql)
+      +materialized: table     # tabela física: leitura rápida no EDA e no modelo
+    gold:
+      +schema: gold
+      +materialized: table

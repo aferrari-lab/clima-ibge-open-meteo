@@ -7,4 +7,5 @@ tqdm==4.70.1
 Unidecode==1.4.0
 ipykernel==7.4.0
 matplotlib>=3.10
+dbt-duckdb==1.11.0
 -e .

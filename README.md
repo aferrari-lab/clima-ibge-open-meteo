@@ -4,19 +4,23 @@ Pipeline em Python que coleta o clima diário dos municípios brasileiros desde 
 
 > **Status:** em desenvolvimento.
 >
-> - **Pronto:** extração dos municípios (IBGE) e das coordenadas; carga incremental e retomável do clima (Open-Meteo), com testes automatizados.
+> - **Pronto:** extração dos municípios (IBGE) e das coordenadas; carga incremental e retomável do clima (Open-Meteo); transformação em camadas com dbt (silver e gold), com testes de qualidade.
 > - **Em andamento:** carga histórica desde 2016, começando por São Paulo e seguindo para as demais UFs, no ritmo da cota diária gratuita da API.
-> - **Próximo:** validação de qualidade dos dados e modelagem da previsão de temperatura.
+> - **Próximo:** análise exploratória com os dados completos e modelagem da previsão de temperatura.
 
 ## Fluxo
 
 ```
 IBGE (API de localidades) ───────┐
-Coordenadas dos municípios ──────┼─► DuckDB (schema bronze) ─► análise e modelo de previsão
-Open-Meteo (histórico + previsão)┘
+Coordenadas dos municípios ──────┼─► bronze ──► silver ──► gold ──► EDA e modelo de previsão
+Open-Meteo (histórico + previsão)┘   Python     dbt        dbt
 ```
 
+Tudo fica em um único banco DuckDB local, com uma schema por camada.
+
 ## Tabelas
+
+### Bronze: dados crus (carga em Python)
 
 **`bronze.ibge_municipios`**: os 5.571 municípios do IBGE, com UF, região, microrregião, latitude, longitude e fuso horário. Inclui `nome_norm` (nome sem acento, em minúsculas) para cruzar com outras bases.
 
@@ -32,6 +36,16 @@ Open-Meteo (histórico + previsão)┘
 
 Além delas: `fonte` (`archive` = dado fechado, `forecast` = provisório) e `carregado_em`.
 
+### Silver: limpeza, tipos e unidades (dbt)
+
+- **`silver.municipios`**: municípios tipados, com as colunas usadas nas próximas camadas.
+- **`silver.clima_diario`**: só dado fechado (`archive`), com nomes e unidades explícitos (`temp_media_c`, `chuva_mm`, `radiacao_mj_m2`, `sol_horas`, `vento_max_kmh`), amplitude térmica e colunas de calendário.
+
+### Gold: análise e modelo (dbt)
+
+- **`gold.dim_municipio`**: uma linha por município, com o nome no formato "Cidade (UF)" e a cobertura de dados de clima.
+- **`gold.fct_clima_diario`**: uma linha por município e dia, com UF, região e variáveis do passado recente (temperatura de ontem, média e chuva dos 7 dias anteriores), calculadas só com dias anteriores para não vazar o futuro para o modelo.
+
 ## Decisões de projeto
 
 - **Carga incremental e idempotente:** cada execução busca só o que falta (a partir do último dia gravado de cada município). Gravar de novo o mesmo dia substitui a linha, sem duplicar.
@@ -39,6 +53,7 @@ Além delas: `fonte` (`archive` = dado fechado, `forecast` = provisório) e `car
 - **Pedidos divididos:** a API recusa pedidos grandes demais (erro 400). Por isso a carga divide o período por ano e as cidades em lotes, com um orçamento de valores por pedido.
 - **Retomável:** cada pedido é gravado ao terminar. Se a carga parar (por limite de uso, por exemplo), basta rodar de novo.
 - **Limite de uso da API:** o plano gratuito pesa cada pedido por cidades × dias. Por isso a carga usa, por padrão, uma cidade por região imediata (os vizinhos têm séries quase iguais); `--todas` carrega todos os municípios (para o Brasil inteiro, leva meses na cota gratuita).
+- **Camadas e testes com dbt:** a bronze é só lida pelo dbt (declarada como *source*); a silver tem um modelo de limpeza por tabela de origem; junções e variáveis ficam na gold. Há testes de qualidade nas três camadas (chaves únicas, integridade entre tabelas, faixas plausíveis) e aviso de atraso da carga (`dbt source freshness`).
 - **Fuso horário por município:** passado à API para evitar datas deslocadas.
 
 ## Limites da API
@@ -51,6 +66,7 @@ Por isso a carga usa uma cidade por região imediata por padrão, divide os pedi
 
 ```
 src/clima/       módulo da carga (open_meteo.py, cidades.py, db.py) e linha de comando (__main__.py)
+dbt/             transformação em camadas (bronze -> silver -> gold), testes de dados e documentação
 notebooks/       municípios do IBGE (01), carga do clima (02) e análise exploratória (03)
 tests/           testes com a API simulada (não gastam o limite de uso)
 dados/           dados e banco local (não versionados)
@@ -80,9 +96,18 @@ python -m clima --uf SP --inicio 2020-01-01
 
 Sem `--uf`, o comando carrega o Brasil inteiro; com `--uf SP`, só uma UF. A carga é retomável. Se parar por limite de uso da API, o programa termina com código de saída 2: rode o mesmo comando mais tarde.
 
-**3. Análise exploratória (EDA):** `notebooks/03_eda.ipynb`. Só lê o banco, então precisa da carga do passo 2.
+**3. Transformação (dbt)**, com os notebooks que usam o banco fechados:
 
-**Testes:** `pip install pytest` e depois `pytest`.
+```bash
+cd dbt
+dbt build --profiles-dir .              # cria silver e gold e roda os testes de dados
+dbt source freshness --profiles-dir .   # avisa se a carga está atrasada
+dbt docs generate --profiles-dir .      # documentação e linhagem (veja com: dbt docs serve --profiles-dir .)
+```
+
+**4. Análise exploratória (EDA):** `notebooks/03_eda.ipynb`. Lê a camada gold, então precisa dos passos 2 e 3.
+
+**Testes do pacote:** `pip install pytest` e depois `pytest`, na raiz. Os testes de dados ficam no dbt e rodam no `dbt build`.
 
 ## Fontes e atribuição
 
@@ -96,7 +121,7 @@ Os dados do Open-Meteo vêm de modelos de reanálise com grade de resolução li
 ## Próximos passos
 
 - Concluir a carga histórica (depende da cota diária da API).
-- Validações de qualidade dos dados (dias faltando por município).
+- Rodar o EDA com a carga completa e registrar as conclusões.
 - Modelo de referência com a média histórica de cada dia do ano.
 - Modelo de previsão de temperatura, com validação separada por data.
 

@@ -1,0 +1,8 @@
+# Rode o dbt de dentro da pasta dbt/ com --profiles-dir .
+clima:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../dados/warehouse.duckdb   # relativo à pasta de onde o dbt é executado (dbt/)
+      threads: 1                        # o DuckDB aceita um escritor por vez

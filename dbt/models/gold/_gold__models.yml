@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: dim_municipio
+    description: Uma linha por município, com atributos do IBGE e a cobertura de dados de clima.
+    columns:
+      - name: ibge_id
+        data_tests: [unique, not_null]
+      - name: nome_uf
+        description: Nome no formato "Cidade (UF)", único mesmo com cidades homônimas.
+        data_tests: [unique, not_null]
+
+  - name: fct_clima_diario
+    description: >
+      Clima por município e dia (chave ibge_id + data), com variáveis do passado recente
+      (ontem e últimos 7 dias) para o modelo de previsão. Não usa dados do próprio dia nem futuros.
+    data_tests:
+      - chave_unica:
+          arguments:
+            colunas: [ibge_id, data]
+    columns:
+      - name: ibge_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_municipio')
+                field: ibge_id
+      - name: temp_media_ontem_c
+        description: Temperatura média do dia anterior (vazia se o dia anterior não existir).
+      - name: temp_media_7d_c
+        description: Média da temperatura média nos 7 dias anteriores (só os dias existentes).
+      - name: dias_validos_7d
+        description: Quantos dos 7 dias anteriores têm dado (menos de 7 = janela incompleta).
