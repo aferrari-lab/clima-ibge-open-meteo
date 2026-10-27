@@ -29,12 +29,14 @@ Tudo fica em um único banco DuckDB local, com uma schema por camada.
 | Variável | Descrição |
 |---|---|
 | `temperature_2m_mean` / `_max` / `_min` | temperatura do ar a 2 m (°C) |
-| `precipitation_sum` | chuva total do dia |
-| `shortwave_radiation_sum` | radiação solar acumulada |
-| `sunshine_duration` | duração do sol no dia |
-| `wind_speed_10m_max` | vento máximo a 10 m |
+| `precipitation_sum` | chuva total do dia (mm) |
+| `shortwave_radiation_sum` | radiação solar acumulada (MJ/m²) |
+| `sunshine_duration` | duração do sol no dia (segundos) |
+| `wind_speed_10m_max` | vento máximo a 10 m (km/h) |
 
 Além delas: `fonte` (`archive` = dado fechado, `forecast` = provisório) e `carregado_em`.
+
+O dbt não cria nem altera a bronze: ele a lê como *source* (`dbt/models/bronze/_bronze__sources.yml`), onde ficam os testes de entrada (chaves, integridade e valores de `fonte`) e o aviso de atraso da carga, antes de criar a silver.
 
 ### Silver: limpeza, tipos e unidades (dbt)
 
