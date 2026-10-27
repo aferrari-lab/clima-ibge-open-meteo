@@ -5,7 +5,7 @@ Pipeline em Python que coleta o clima diário dos municípios brasileiros desde 
 > **Status:** em desenvolvimento.
 >
 > - **Pronto:** extração dos municípios (IBGE) e das coordenadas; carga incremental e retomável do clima (Open-Meteo); transformação em camadas com dbt (silver e gold), com testes de qualidade.
-> - **Em andamento:** carga histórica desde 2016, começando por São Paulo e seguindo para as demais UFs, no ritmo da cota diária gratuita da API.
+> - **Em andamento:** carga histórica desde 2016, começando por São Paulo e seguindo para as demais UFs, no ritmo da cota diária gratuita da API; orquestração com Airflow (ambiente local pronto, DAGs do pipeline em construção).
 > - **Próximo:** análise exploratória com os dados completos e modelagem da previsão de temperatura.
 
 ## Fluxo
@@ -69,6 +69,7 @@ Por isso a carga usa uma cidade por região imediata por padrão, divide os pedi
 ```
 src/clima/       módulo da carga (open_meteo.py, cidades.py, db.py) e linha de comando (__main__.py)
 dbt/             transformação em camadas (bronze -> silver -> gold), testes de dados e documentação
+airflow/         orquestração: Airflow local no Docker (Dockerfile, docker-compose e DAGs)
 notebooks/       municípios do IBGE (01), carga do clima (02) e análise exploratória (03)
 tests/           testes com a API simulada (não gastam o limite de uso)
 dados/           dados e banco local (não versionados)
@@ -110,6 +111,23 @@ dbt docs generate --profiles-dir .      # documentação e linhagem (veja com: d
 **4. Análise exploratória (EDA):** `notebooks/03_eda.ipynb`. Lê a camada gold, então precisa dos passos 2 e 3.
 
 **Testes do pacote:** `pip install pytest` e depois `pytest`, na raiz. Os testes de dados ficam no dbt e rodam no `dbt build`.
+
+## Orquestração com Airflow (em construção)
+
+O Airflow roda localmente no Docker Desktop (pasta `airflow/`), na versão 3.3.2, com **LocalExecutor**: as tarefas rodam dentro do próprio scheduler, sem Redis nem workers separados. A imagem é a oficial mais um ambiente Python separado para o pacote `clima` e o dbt, para não misturar as dependências dos dois. A raiz do projeto é montada no container em `/opt/projeto`.
+
+```bash
+cd airflow
+docker compose build             # constrói a imagem (só na primeira vez ou quando o Dockerfile mudar)
+docker compose up airflow-init   # cria o banco de metadados e o usuário de login (uma vez)
+docker compose up -d             # sobe o Airflow em segundo plano
+```
+
+Interface em http://localhost:8080 (usuário e senha no `airflow/.env`; o padrão é `airflow`/`airflow`). Para desligar: `docker compose down`.
+
+Por enquanto há só o DAG `ola_mundo`, que confere se o Airflow enxerga o projeto e o ambiente. O próximo passo é o DAG diário do pipeline: carga do clima, `dbt source freshness` e `dbt build`.
+
+O DuckDB aceita um escritor por vez: não rode a carga ou o dbt pelo VS Code enquanto um DAG estiver gravando no banco.
 
 ## Fontes e atribuição
 

@@ -29,3 +29,7 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
+
+# Airflow (artefatos locais)
+airflow/logs/
+airflow/config/airflow.cfg
